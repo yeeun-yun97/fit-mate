@@ -24,6 +24,23 @@ export function DailyLogForm({ initialData }: Props) {
   const [ketone, setKetone] = useState<number>(initialData?.fasting_ketone ?? 0);
   const isEdit = !!initialData;
 
+  function glucoseReaction(v: number) {
+    if (v <= 79) return { emoji: "😰", text: "너무 낮아요! 밥은 먹고 다녀요?!" };
+    if (v <= 89) return { emoji: "🏆", text: "완벽! 이 혈당 실화?! 천재인가!" };
+    if (v <= 99) return { emoji: "👏", text: "잘하고 있어요! 이 조자 유지!" };
+    if (v <= 109) return { emoji: "🤨", text: "흠... 어제 뭐 먹었는지 좀 말해봐요" };
+    if (v <= 125) return { emoji: "😤", text: "솔직히 말해요! 어제 뭐 먹었어!!" };
+    return { emoji: "🚨", text: "야!! 어제 밥 먹었지?! 빵?! 면?! 당장 고백해!!" };
+  }
+
+  function ketoneReaction(v: number) {
+    if (v === 0) return { emoji: "💀", text: "당신의 몸은 지금 지방을 쌓고 있어요!!" };
+    if (v <= 0.4) return { emoji: "😒", text: "겨우 이 정도?! 몸이 아직 설탕 태우고 있어!" };
+    if (v <= 0.9) return { emoji: "🔥", text: "오 지방 태우기 시작! 이제 좀 하는구만!" };
+    if (v <= 1.4) return { emoji: "🔥", text: "미쳤다!! 지방 활활! 몸이 기름 먹는 기계!" };
+    return { emoji: "🚀", text: "역대급!! 지방 폭발 연소 중!! 전설이다!!" };
+  }
+
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setError(null);
@@ -114,6 +131,17 @@ export function DailyLogForm({ initialData }: Props) {
               rows={3}
               defaultValue={initialData?.diet_note ?? ""}
             />
+          </div>
+
+          <div className="space-y-2 rounded-2xl bg-secondary/60 p-3">
+            <div className="flex items-start gap-2 text-sm">
+              <span className="shrink-0">{glucoseReaction(glucose).emoji}</span>
+              <span><strong>혈당:</strong> {glucoseReaction(glucose).text}</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="shrink-0">{ketoneReaction(ketone).emoji}</span>
+              <span><strong>케톤:</strong> {ketoneReaction(ketone).text}</span>
+            </div>
           </div>
 
           <div className="flex gap-2">
