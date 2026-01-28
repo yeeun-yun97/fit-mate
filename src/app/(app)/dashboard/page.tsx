@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { PageContainer } from "@/components/layout/page-container";
+import { DailyChallenge } from "@/components/dashboard/daily-challenge";
+import { WeekSelector } from "@/components/dashboard/week-selector";
 import { TodaySummary } from "@/components/dashboard/today-summary";
 import { QuickAdd } from "@/components/dashboard/quick-add";
 import { CalendarView } from "@/components/dashboard/calendar-view";
@@ -31,7 +33,7 @@ export default async function DashboardPage() {
       .from("daily_logs")
       .select("*")
       .order("log_date", { ascending: false })
-      .limit(3),
+      .limit(5),
     supabase
       .from("daily_logs")
       .select("log_date")
@@ -68,19 +70,27 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <Header title="핏 메이트" />
+      <Header title="핏 메이트" greeting />
       <PageContainer>
-        <div className="space-y-5">
+        <div className="space-y-6">
+          <DailyChallenge hasLoggedToday={!!todayLog} />
+
+          <WeekSelector loggedDates={dailyDates} />
+
           <TodaySummary todayLog={todayLog as DailyLog | null} />
+
           <QuickAdd />
+
           <MiniChart data={(chartData || []) as DailyLog[]} />
+
           <CalendarView
             dailyDates={dailyDates}
             periodDates={periodDates}
             bowelDates={bowelDates}
           />
+
           <div>
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <h2 className="text-sm font-bold text-foreground mb-3">
               최근 기록
             </h2>
             <RecentEntries logs={(recentLogs || []) as DailyLog[]} />

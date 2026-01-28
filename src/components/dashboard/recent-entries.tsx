@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { DailyLog } from "@/lib/types/database";
@@ -11,11 +10,9 @@ interface Props {
 export function RecentEntries({ logs }: Props) {
   if (logs.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-6 text-center text-muted-foreground text-sm">
-          최근 기록이 없습니다
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl bg-muted/50 py-8 text-center text-muted-foreground text-sm">
+        최근 기록이 없습니다
+      </div>
     );
   }
 
@@ -23,32 +20,35 @@ export function RecentEntries({ logs }: Props) {
     <div className="space-y-2">
       {logs.map((log) => (
         <Link key={log.id} href={`/daily/${log.id}`}>
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-            <CardContent className="py-3 px-4">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">
-                  {format(new Date(log.log_date + "T00:00:00"), "M월 d일 (EEE)", { locale: ko })}
-                </span>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {log.fasting_glucose && (
-                    <span>
-                      혈당 <strong className="text-foreground">{log.fasting_glucose}</strong>
-                    </span>
-                  )}
-                  {log.fasting_ketone && (
-                    <span>
-                      케톤 <strong className="text-foreground">{log.fasting_ketone}</strong>
-                    </span>
-                  )}
-                </div>
-              </div>
+          <div className="flex items-center gap-3 rounded-2xl bg-card border border-border/50 p-3.5 hover:border-primary/40 active:scale-[0.99] transition-all cursor-pointer">
+            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-sm shrink-0">
+              ☀️
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {format(new Date(log.log_date + "T00:00:00"), "M월 d일 (EEE)", { locale: ko })}
+              </p>
               {log.diet_note && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
                   {log.diet_note}
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex items-center gap-3 text-xs shrink-0">
+              {log.fasting_glucose != null && (
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground">혈당</p>
+                  <p className="font-bold text-foreground">{log.fasting_glucose}</p>
+                </div>
+              )}
+              {log.fasting_ketone != null && (
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground">케톤</p>
+                  <p className="font-bold text-foreground">{log.fasting_ketone}</p>
+                </div>
+              )}
+            </div>
+          </div>
         </Link>
       ))}
     </div>
