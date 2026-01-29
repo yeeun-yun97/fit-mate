@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format, subDays, addDays, isToday } from "date-fns";
 import { ko } from "date-fns/locale";
+import { createClient } from "@/lib/supabase/client";
+import { evaluateGlucose, evaluateKetone, getScoreColor } from "@/lib/evaluations/fasting";
+import { FastingEditSheet } from "@/components/sheets/fasting-edit-sheet";
+import type { DailyFasting } from "@/lib/types/database";
 
-// 더미 데이터
+// 더미 데이터 (공복 혈액 제외)
 const dummyData = {
-  fastingGlucose: 89,
-  fastingKetone: 1.3,
   weights: [
     { id: 1, value: 55.8, time: "07:30" },
     { id: 2, value: 56.1, time: "12:45" },
@@ -35,8 +37,29 @@ const dummyData = {
 
 export function TodayContent() {
   const [data, setData] = useState(dummyData);
+  const [fastingData, setFastingData] = useState<DailyFasting | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [fastingSheetOpen, setFastingSheetOpen] = useState(false);
+
+  // 공복 혈액 데이터 가져오기
+  const fetchFastingData = useCallback(async () => {
+    const supabase = createClient();
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+    const { data } = await supabase
+      .from("daily_fastings")
+      .select("*")
+      .eq("log_date", dateStr)
+      .single();
+
+    setFastingData(data);
+  }, [selectedDate]);
+
+  // 날짜가 변경될 때마다 공복 혈액 데이터 가져오기
+  useEffect(() => {
+    fetchFastingData();
+  }, [fetchFastingData]);
 
   const canGoNext = !isToday(selectedDate);
 
@@ -81,24 +104,52 @@ export function TodayContent() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-foreground">공복 혈액</h3>
           <button
-            onClick={() => setEditingSection("fasting")}
+            onClick={() => setFastingSheetOpen(true)}
             className="text-xs text-primary font-medium"
           >
             수정
           </button>
         </div>
-        <div className="flex gap-6">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground mb-0.5">혈당</p>
-            <p className={`text-lg font-semibold ${!data.fastingGlucose ? "text-muted-foreground" : ""}`}>
-              {data.fastingGlucose ? `${data.fastingGlucose} mg/dL` : "미입력"}
-            </p>
+            {fastingData?.fasting_glucose ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-semibold">
+                    {fastingData.fasting_glucose} mg/dL
+                  </p>
+                  <span className={`text-sm font-bold ${getScoreColor(evaluateGlucose(Number(fastingData.fasting_glucose)).score)}`}>
+                    {evaluateGlucose(Number(fastingData.fasting_glucose)).score}점
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {evaluateGlucose(Number(fastingData.fasting_glucose)).reason}
+                </p>
+              </>
+            ) : (
+              <p className="text-lg font-semibold text-muted-foreground">미입력</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-0.5">케톤</p>
-            <p className={`text-lg font-semibold ${!data.fastingKetone ? "text-muted-foreground" : ""}`}>
-              {data.fastingKetone ? `${data.fastingKetone} mmol/L` : "미입력"}
-            </p>
+            {fastingData?.fasting_ketone ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-semibold">
+                    {fastingData.fasting_ketone} mmol/L
+                  </p>
+                  <span className={`text-sm font-bold ${getScoreColor(evaluateKetone(Number(fastingData.fasting_ketone)).score)}`}>
+                    {evaluateKetone(Number(fastingData.fasting_ketone)).score}점
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {evaluateKetone(Number(fastingData.fasting_ketone)).reason}
+                </p>
+              </>
+            ) : (
+              <p className="text-lg font-semibold text-muted-foreground">미입력</p>
+            )}
           </div>
         </div>
       </div>
@@ -280,6 +331,22 @@ export function TodayContent() {
           <p className="text-sm text-muted-foreground">오늘 하루를 돌아보세요</p>
         )}
       </div>
+
+      {/* 공복 혈액 수정 바텀 시트 */}
+      <FastingEditSheet
+        open={fastingSheetOpen}
+        onOpenChange={setFastingSheetOpen}
+        date={format(selectedDate, "yyyy-MM-dd")}
+        initialData={
+          fastingData
+            ? {
+                fasting_glucose: fastingData.fasting_glucose,
+                fasting_ketone: fastingData.fasting_ketone,
+              }
+            : undefined
+        }
+        onSaved={fetchFastingData}
+      />
     </div>
   );
 }
