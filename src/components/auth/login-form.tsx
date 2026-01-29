@@ -5,8 +5,6 @@ import { login } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
 
 export function LoginForm({ message }: { message?: string }) {
   const [error, setError] = useState<string | null>(null);
@@ -23,38 +21,68 @@ export function LoginForm({ message }: { message?: string }) {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-primary">핏 메이트</CardTitle>
-        <p className="text-sm text-muted-foreground">로그인하여 기록을 시작하세요</p>
-      </CardHeader>
-      <CardContent>
-        <form action={handleSubmit} className="space-y-4">
-          {message && (
-            <p className="text-sm text-primary bg-accent rounded-md p-2 text-center">{message}</p>
-          )}
-          {error && (
-            <p className="text-sm text-destructive bg-destructive/10 rounded-md p-2 text-center">{error}</p>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">이메일</Label>
-            <Input id="email" name="email" type="email" required placeholder="you@example.com" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">비밀번호</Label>
-            <Input id="password" name="password" type="password" required placeholder="••••••••" />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "로그인 중..." : "로그인"}
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          계정이 없으신가요?{" "}
-          <Link href="/signup" className="text-primary font-medium hover:underline">
-            회원가입
-          </Link>
-        </p>
-      </CardContent>
-    </Card>
+    <div className="w-full max-w-sm">
+      {/* 로고 & 타이틀 */}
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <DumbbellIcon className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">FitMate</h1>
+        <p className="text-sm text-muted-foreground mt-1">건강한 습관을 기록하세요</p>
+      </div>
+
+      {/* 폼 */}
+      <form action={handleSubmit} className="space-y-4">
+        {message && (
+          <p className="text-sm text-primary bg-primary/10 rounded-xl p-3 text-center">{message}</p>
+        )}
+        {error && (
+          <p className="text-sm text-destructive bg-destructive/10 rounded-xl p-3 text-center">{error}</p>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            placeholder="you@example.com"
+            className="h-12 rounded-xl bg-muted/50 border-0 focus-visible:ring-2 focus-visible:ring-primary"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-sm font-medium">비밀번호</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            placeholder="••••••••"
+            className="h-12 rounded-xl bg-muted/50 border-0 focus-visible:ring-2 focus-visible:ring-primary"
+          />
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full h-12 rounded-xl text-base font-semibold mt-2"
+          disabled={loading}
+        >
+          {loading ? "로그인 중..." : "로그인"}
+        </Button>
+      </form>
+
+    </div>
+  );
+}
+
+function DumbbellIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="square" strokeLinejoin="miter">
+      <path d="M14.4 14.4 9.6 9.6" />
+      <path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z" />
+      <path d="m5.343 2.515a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829L6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829z" />
+    </svg>
   );
 }

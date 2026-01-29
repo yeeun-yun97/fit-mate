@@ -124,6 +124,26 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* 자동완성 스타일 오버라이드 */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 100px oklch(0.967 0.03 120) inset !important;
+    -webkit-text-fill-color: oklch(0.145 0.02 130) !important;
+    caret-color: oklch(0.145 0.02 130) !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 100px oklch(0.269 0.03 130) inset !important;
+    -webkit-text-fill-color: oklch(0.985 0.02 120) !important;
+    caret-color: oklch(0.985 0.02 120) !important;
+  }
 }
 
 .safe-area-bottom {
