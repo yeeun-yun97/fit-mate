@@ -1,10 +1,9 @@
-export interface DailyLog {
+export interface DailyFasting {
   id: string;
   user_id: string;
   log_date: string;
   fasting_glucose: number | null;
   fasting_ketone: number | null;
-  diet_note: string | null;
   created_at: string;
   updated_at: string;
 }
