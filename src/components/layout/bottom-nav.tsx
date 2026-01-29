@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "홈", icon: HomeIcon },
-  { href: "/daily", label: "기록", icon: SunIcon },
+  { href: "/today", label: "기록", icon: SunIcon },
   { href: "/inbody", label: "인바디", icon: BodyIcon },
   { href: "/charts", label: "차트", icon: ChartIcon },
 ];
