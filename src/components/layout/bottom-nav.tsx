@@ -15,7 +15,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-5 pointer-events-none safe-area-bottom">
+    <div className="fixed bottom-4 left-0 right-0 z-50 flex justify-end pr-4 pointer-events-none">
       <nav className="pointer-events-auto bg-foreground rounded-full px-2 py-1.5 shadow-lg shadow-foreground/20">
         <div className="flex items-center gap-1">
           {navItems.map((item) => {
