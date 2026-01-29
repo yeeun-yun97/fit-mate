@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const today = format(new Date(), "yyyy-MM-dd");
   const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
 
-  const [{ data: todayLog }, { data: weekLogs }, { data: fastingData }] = await Promise.all([
+  const [{ data: todayLog }, { data: weekLogs }, { data: fastingData }, { data: weightData }] = await Promise.all([
     supabase
       .from("daily_fastings")
       .select("id")
@@ -28,20 +28,37 @@ export default async function DashboardPage() {
       .select("*")
       .gte("log_date", weekAgo)
       .order("log_date", { ascending: true }),
+    supabase
+      .from("timely_weights")
+      .select("measured_at, weight")
+      .gte("measured_at", `${weekAgo}T00:00:00`)
+      .order("measured_at", { ascending: true }),
   ]);
 
   const dailyDates = new Set((weekLogs || []).map((d: { log_date: string }) => d.log_date));
 
-  // 체중 더미 데이터 (하루에 여러 번 측정, 수염이 확실히 보이게 범위 넓힘)
-  const dummyWeightData = [
-    { date: format(subDays(new Date(), 6), "M/d"), weights: [54.0, 56.0, 56.5, 57.0, 57.5, 58.0, 60.0] },
-    { date: format(subDays(new Date(), 5), "M/d"), weights: [53.5, 55.5, 56.0, 56.5, 57.0, 57.5, 59.5] },
-    { date: format(subDays(new Date(), 4), "M/d"), weights: [53.0, 55.0, 55.5, 56.0, 56.5, 57.0, 59.0] },
-    { date: format(subDays(new Date(), 3), "M/d"), weights: [52.5, 54.5, 55.0, 55.5, 56.0, 56.5, 58.5] },
-    { date: format(subDays(new Date(), 2), "M/d"), weights: [52.0, 54.0, 54.5, 55.0, 55.5, 56.0, 58.0] },
-    { date: format(subDays(new Date(), 1), "M/d"), weights: [51.5, 53.5, 54.0, 54.5, 55.0, 55.5, 57.5] },
-    { date: format(new Date(), "M/d"), weights: [51.0, 53.0, 53.5, 54.0, 54.5, 55.0, 57.0] },
-  ];
+  // 체중 데이터를 날짜별로 그룹화 (한국 시간대 기준)
+  const weightByDate = (weightData || []).reduce((acc, item) => {
+    // UTC를 한국 시간(+9)으로 변환
+    const utcDate = new Date(item.measured_at);
+    const kstDate = new Date(utcDate.getTime() + 9 * 60 * 60 * 1000);
+    const date = format(kstDate, "M/d");
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(Number(item.weight));
+    return acc;
+  }, {} as Record<string, number[]>);
+
+  // 데이터가 있는 날짜만 표시
+  const chartWeightData = Object.entries(weightByDate)
+    .map(([date, weights]) => ({ date, weights }))
+    .sort((a, b) => {
+      // 날짜순 정렬 (M/d 형식)
+      const [aMonth, aDay] = a.date.split("/").map(Number);
+      const [bMonth, bDay] = b.date.split("/").map(Number);
+      return aMonth !== bMonth ? aMonth - bMonth : aDay - bDay;
+    });
 
   return (
     <>
@@ -56,7 +73,7 @@ export default async function DashboardPage() {
             <MiniChart data={fastingData || []} />
           </div>
           <div className="mt-4">
-            <WeightBoxplot data={dummyWeightData} />
+            <WeightBoxplot data={chartWeightData} />
           </div>
         </div>
       </PageContainer>

@@ -1,10 +1,10 @@
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import type { DailyLog } from "@/lib/types/database";
+import type { DailyFasting } from "@/lib/types/database";
 import Link from "next/link";
 
 interface Props {
-  logs: DailyLog[];
+  logs: DailyFasting[];
 }
 
 export function RecentEntries({ logs }: Props) {
@@ -28,11 +28,6 @@ export function RecentEntries({ logs }: Props) {
               <p className="text-sm font-semibold text-foreground">
                 {format(new Date(log.log_date + "T00:00:00"), "M월 d일 (EEE)", { locale: ko })}
               </p>
-              {log.diet_note && (
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {log.diet_note}
-                </p>
-              )}
             </div>
             <div className="flex items-center gap-3 text-xs shrink-0">
               {log.fasting_glucose != null && (

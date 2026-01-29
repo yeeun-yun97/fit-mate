@@ -5,10 +5,10 @@ import { subDays } from "date-fns";
 import { PeriodSelector } from "@/components/charts/period-selector";
 import { GlucoseKetoneChart } from "@/components/charts/glucose-ketone-chart";
 import { BodyCompositionChart } from "@/components/charts/body-composition-chart";
-import type { DailyLog, InbodyLog } from "@/lib/types/database";
+import type { DailyFasting, InbodyLog } from "@/lib/types/database";
 
 interface Props {
-  dailyLogs: DailyLog[];
+  dailyLogs: DailyFasting[];
   inbodyLogs: InbodyLog[];
 }
 

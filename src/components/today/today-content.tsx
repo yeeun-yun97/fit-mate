@@ -5,16 +5,19 @@ import { format, subDays, addDays, isToday } from "date-fns";
 import { ko } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/client";
 import { evaluateGlucose, evaluateKetone, evaluateMetabolicState } from "@/lib/evaluations/fasting";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FastingEditSheet } from "@/components/sheets/fasting-edit-sheet";
+import { WeightEditSheet } from "@/components/sheets/weight-edit-sheet";
 import type { DailyFasting } from "@/lib/types/database";
 
-// 더미 데이터 (공복 혈액 제외)
+interface WeightEntry {
+  id: string;
+  weight: number;
+  measured_at: string;
+}
+
+// 더미 데이터 (공복 혈액, 체중 제외)
 const dummyData = {
-  weights: [
-    { id: 1, value: 55.8, time: "07:30" },
-    { id: 2, value: 56.1, time: "12:45" },
-    { id: 3, value: 56.3, time: "19:20" },
-  ],
   bodyConditions: [
     { id: 1, type: "생리 시작", time: "08:00" },
     { id: 2, type: "두통", time: "14:30" },
@@ -38,9 +41,12 @@ const dummyData = {
 export function TodayContent() {
   const [data, setData] = useState(dummyData);
   const [fastingData, setFastingData] = useState<DailyFasting | null>(null);
+  const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fastingSheetOpen, setFastingSheetOpen] = useState(false);
+  const [weightSheetOpen, setWeightSheetOpen] = useState(false);
+  const [editingWeight, setEditingWeight] = useState<WeightEntry | null>(null);
 
   // 공복 혈액 데이터 가져오기
   const fetchFastingData = useCallback(async () => {
@@ -56,10 +62,27 @@ export function TodayContent() {
     setFastingData(data);
   }, [selectedDate]);
 
-  // 날짜가 변경될 때마다 공복 혈액 데이터 가져오기
+  // 체중 데이터 가져오기
+  const fetchWeightData = useCallback(async () => {
+    const supabase = createClient();
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const nextDateStr = format(addDays(selectedDate, 1), "yyyy-MM-dd");
+
+    const { data } = await supabase
+      .from("timely_weights")
+      .select("id, weight, measured_at")
+      .gte("measured_at", dateStr)
+      .lt("measured_at", nextDateStr)
+      .order("measured_at", { ascending: true });
+
+    setWeights(data || []);
+  }, [selectedDate]);
+
+  // 날짜가 변경될 때마다 데이터 가져오기
   useEffect(() => {
     fetchFastingData();
-  }, [fetchFastingData]);
+    fetchWeightData();
+  }, [fetchFastingData, fetchWeightData]);
 
   const canGoNext = !isToday(selectedDate);
 
@@ -103,61 +126,62 @@ export function TodayContent() {
       <div className="rounded-2xl bg-card border border-border/50 p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-foreground">공복 혈액</h3>
-          <button
-            onClick={() => setFastingSheetOpen(true)}
-            className="text-xs text-primary font-medium"
-          >
-            수정
-          </button>
+          {(fastingData?.fasting_glucose != null || fastingData?.fasting_ketone != null) && (
+            <button
+              onClick={() => setFastingSheetOpen(true)}
+              className="text-xs text-primary font-medium"
+            >
+              수정
+            </button>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {/* 혈당 - 보라색 */}
-          <div className="rounded-xl bg-violet-500/10 p-3">
-            {fastingData?.fasting_glucose ? (
+        {fastingData?.fasting_glucose != null || fastingData?.fasting_ketone != null ? (
+          <div className="grid grid-cols-2 gap-3">
+            {/* 혈당 - 보라색 */}
+            <div className="rounded-xl bg-violet-500/10 p-3">
               <div className="flex items-center gap-3">
                 <CircularScore
-                  score={evaluateGlucose(Number(fastingData.fasting_glucose)).score}
+                  score={evaluateGlucose(Number(fastingData?.fasting_glucose ?? 0)).score}
                   color="violet"
                 />
                 <div>
                   <p className="text-xl font-bold text-violet-600 dark:text-violet-400">
-                    {fastingData.fasting_glucose}
+                    {fastingData?.fasting_glucose ?? 0}
                     <span className="text-xs font-normal ml-1">mg/dL</span>
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {evaluateGlucose(Number(fastingData.fasting_glucose)).reason}
+                    {evaluateGlucose(Number(fastingData?.fasting_glucose ?? 0)).reason}
                   </p>
                 </div>
               </div>
-            ) : (
-              <p className="text-sm text-violet-600 dark:text-violet-400">혈당 미입력</p>
-            )}
-          </div>
-          {/* 케톤 - 주황색 */}
-          <div className="rounded-xl bg-orange-500/10 p-3">
-            {fastingData?.fasting_ketone ? (
+            </div>
+            {/* 케톤 - 주황색 */}
+            <div className="rounded-xl bg-orange-500/10 p-3">
               <div className="flex items-center gap-3">
                 <CircularScore
-                  score={evaluateKetone(Number(fastingData.fasting_ketone)).score}
+                  score={evaluateKetone(Number(fastingData?.fasting_ketone ?? 0)).score}
                   color="orange"
                 />
                 <div>
                   <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                    {fastingData.fasting_ketone}
+                    {fastingData?.fasting_ketone ?? 0}
                     <span className="text-xs font-normal ml-1">mmol/L</span>
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {evaluateKetone(Number(fastingData.fasting_ketone)).reason}
+                    {evaluateKetone(Number(fastingData?.fasting_ketone ?? 0)).reason}
                   </p>
                 </div>
               </div>
-            ) : (
-              <p className="text-sm text-orange-600 dark:text-orange-400">케톤 미입력</p>
-            )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <EmptyState
+            label="기록하기"
+            onClick={() => setFastingSheetOpen(true)}
+          />
+        )}
         {/* 대사 상태 메시지 */}
-        {fastingData?.fasting_glucose && fastingData?.fasting_ketone && (
+        {fastingData?.fasting_glucose != null && fastingData?.fasting_ketone != null && (
           <div className="mt-3 pt-3 border-t border-border/50">
             {(() => {
               const metabolic = evaluateMetabolicState(
@@ -186,37 +210,53 @@ export function TodayContent() {
 
       {/* 체중 목록 */}
       <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3">
           <h3 className="text-sm font-bold text-foreground">체중</h3>
-          <button
-            onClick={() => setEditingSection("weight-add")}
-            className="text-xs text-primary font-medium"
-          >
-            + 추가
-          </button>
         </div>
-        {data.weights.length > 0 ? (
+        {weights.length > 0 ? (
           <div className="space-y-2">
-            {data.weights.map((w) => (
+            {weights.map((w) => (
               <div
                 key={w.id}
                 className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground">{w.time}</span>
-                  <span className="text-sm font-medium">{w.value} kg</span>
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(w.measured_at), "HH:mm")}
+                  </span>
+                  <span className="text-sm font-medium">{Number(w.weight).toFixed(1)} kg</span>
                 </div>
                 <button
-                  onClick={() => setEditingSection(`weight-${w.id}`)}
+                  onClick={() => {
+                    setEditingWeight(w);
+                    setWeightSheetOpen(true);
+                  }}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   수정
                 </button>
               </div>
             ))}
+            {isToday(selectedDate) && (
+              <button
+                onClick={() => {
+                  setEditingWeight(null);
+                  setWeightSheetOpen(true);
+                }}
+                className="w-full py-2 text-xs text-primary font-medium"
+              >
+                + 기록하기
+              </button>
+            )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">입력된 체중이 없습니다</p>
+          <EmptyState
+            label="기록하기"
+            onClick={() => {
+              setEditingWeight(null);
+              setWeightSheetOpen(true);
+            }}
+          />
         )}
       </div>
 
@@ -376,6 +416,14 @@ export function TodayContent() {
             : undefined
         }
         onSaved={fetchFastingData}
+      />
+
+      {/* 체중 기록 바텀 시트 */}
+      <WeightEditSheet
+        open={weightSheetOpen}
+        onOpenChange={setWeightSheetOpen}
+        initialData={editingWeight || undefined}
+        onSaved={fetchWeightData}
       />
     </div>
   );

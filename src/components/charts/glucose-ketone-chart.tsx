@@ -12,10 +12,10 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
-import type { DailyLog } from "@/lib/types/database";
+import type { DailyFasting } from "@/lib/types/database";
 
 interface Props {
-  data: DailyLog[];
+  data: DailyFasting[];
 }
 
 export function GlucoseKetoneChart({ data }: Props) {

@@ -32,14 +32,14 @@ export function FastingEditSheet({
   initialData,
   onSaved,
 }: FastingEditSheetProps) {
-  const [glucose, setGlucose] = useState(90);
+  const [glucose, setGlucose] = useState(70);
   const [ketone, setKetone] = useState(0);
   const [saving, setSaving] = useState(false);
 
   // 초기 데이터 설정
   useEffect(() => {
     if (open) {
-      setGlucose(initialData?.fasting_glucose ?? 90);
+      setGlucose(initialData?.fasting_glucose ?? 70);
       setKetone(initialData?.fasting_ketone ?? 0);
     }
   }, [open, initialData]);
@@ -49,25 +49,35 @@ export function FastingEditSheet({
     try {
       const supabase = createClient();
 
+      // 현재 로그인한 사용자 ID 가져오기
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("User not authenticated");
+        return;
+      }
+
       const { data: existing } = await supabase
         .from("daily_fastings")
         .select("id")
         .eq("log_date", date)
+        .eq("user_id", user.id)
         .single();
-
-      const payload = {
-        log_date: date,
-        fasting_glucose: glucose,
-        fasting_ketone: ketone,
-      };
 
       if (existing) {
         await supabase
           .from("daily_fastings")
-          .update(payload)
+          .update({
+            fasting_glucose: glucose,
+            fasting_ketone: ketone,
+          })
           .eq("id", existing.id);
       } else {
-        await supabase.from("daily_fastings").insert(payload);
+        await supabase.from("daily_fastings").insert({
+          user_id: user.id,
+          log_date: date,
+          fasting_glucose: glucose,
+          fasting_ketone: ketone,
+        });
       }
 
       onSaved?.();

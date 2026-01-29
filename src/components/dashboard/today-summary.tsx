@@ -1,8 +1,8 @@
 import Link from "next/link";
-import type { DailyLog } from "@/lib/types/database";
+import type { DailyFasting } from "@/lib/types/database";
 
 interface Props {
-  todayLog: DailyLog | null;
+  todayLog: DailyFasting | null;
 }
 
 export function TodaySummary({ todayLog }: Props) {
@@ -38,13 +38,6 @@ export function TodaySummary({ todayLog }: Props) {
           </p>
         </div>
       </div>
-      {todayLog.diet_note && (
-        <div className="mt-3 rounded-2xl bg-muted/50 px-4 py-3">
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            📝 {todayLog.diet_note}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
