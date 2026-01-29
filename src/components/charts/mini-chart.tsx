@@ -34,7 +34,7 @@ export function MiniChart({ data }: Props) {
   return (
     <div className="rounded-2xl bg-card border border-border/50 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-foreground">최근 14일 추이</h2>
+        <h2 className="text-sm font-bold text-foreground">공복 혈액</h2>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-blue-500" />
