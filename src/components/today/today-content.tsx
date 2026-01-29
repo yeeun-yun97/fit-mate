@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format, subDays, addDays, isToday } from "date-fns";
 import { ko } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/client";
-import { evaluateGlucose, evaluateKetone, getScoreColor } from "@/lib/evaluations/fasting";
+import { evaluateGlucose, evaluateKetone, evaluateMetabolicState } from "@/lib/evaluations/fasting";
 import { FastingEditSheet } from "@/components/sheets/fasting-edit-sheet";
 import type { DailyFasting } from "@/lib/types/database";
 
@@ -110,48 +110,78 @@ export function TodayContent() {
             수정
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-0.5">혈당</p>
+        <div className="grid grid-cols-2 gap-3">
+          {/* 혈당 - 보라색 */}
+          <div className="rounded-xl bg-violet-500/10 p-3">
             {fastingData?.fasting_glucose ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-semibold">
-                    {fastingData.fasting_glucose} mg/dL
+              <div className="flex items-center gap-3">
+                <CircularScore
+                  score={evaluateGlucose(Number(fastingData.fasting_glucose)).score}
+                  color="violet"
+                />
+                <div>
+                  <p className="text-xl font-bold text-violet-600 dark:text-violet-400">
+                    {fastingData.fasting_glucose}
+                    <span className="text-xs font-normal ml-1">mg/dL</span>
                   </p>
-                  <span className={`text-sm font-bold ${getScoreColor(evaluateGlucose(Number(fastingData.fasting_glucose)).score)}`}>
-                    {evaluateGlucose(Number(fastingData.fasting_glucose)).score}점
-                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {evaluateGlucose(Number(fastingData.fasting_glucose)).reason}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {evaluateGlucose(Number(fastingData.fasting_glucose)).reason}
-                </p>
-              </>
+              </div>
             ) : (
-              <p className="text-lg font-semibold text-muted-foreground">미입력</p>
+              <p className="text-sm text-violet-600 dark:text-violet-400">혈당 미입력</p>
             )}
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-0.5">케톤</p>
+          {/* 케톤 - 주황색 */}
+          <div className="rounded-xl bg-orange-500/10 p-3">
             {fastingData?.fasting_ketone ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-semibold">
-                    {fastingData.fasting_ketone} mmol/L
+              <div className="flex items-center gap-3">
+                <CircularScore
+                  score={evaluateKetone(Number(fastingData.fasting_ketone)).score}
+                  color="orange"
+                />
+                <div>
+                  <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                    {fastingData.fasting_ketone}
+                    <span className="text-xs font-normal ml-1">mmol/L</span>
                   </p>
-                  <span className={`text-sm font-bold ${getScoreColor(evaluateKetone(Number(fastingData.fasting_ketone)).score)}`}>
-                    {evaluateKetone(Number(fastingData.fasting_ketone)).score}점
-                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {evaluateKetone(Number(fastingData.fasting_ketone)).reason}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {evaluateKetone(Number(fastingData.fasting_ketone)).reason}
-                </p>
-              </>
+              </div>
             ) : (
-              <p className="text-lg font-semibold text-muted-foreground">미입력</p>
+              <p className="text-sm text-orange-600 dark:text-orange-400">케톤 미입력</p>
             )}
           </div>
         </div>
+        {/* 대사 상태 메시지 */}
+        {fastingData?.fasting_glucose && fastingData?.fasting_ketone && (
+          <div className="mt-3 pt-3 border-t border-border/50">
+            {(() => {
+              const metabolic = evaluateMetabolicState(
+                Number(fastingData.fasting_glucose),
+                Number(fastingData.fasting_ketone)
+              );
+              const stateColor = metabolic.score >= 4
+                ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                : metabolic.score === 3
+                ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                : "bg-red-500/15 text-red-600 dark:text-red-400";
+              return (
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${stateColor}`}>
+                    {metabolic.state}
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    {metabolic.reason}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* 체중 목록 */}
@@ -382,6 +412,69 @@ function ChevronRightIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
     </svg>
+  );
+}
+
+function CircularScore({
+  score,
+  maxScore = 5,
+  size = 36,
+  strokeWidth = 3,
+  color,
+}: {
+  score: number;
+  maxScore?: number;
+  size?: number;
+  strokeWidth?: number;
+  color: "violet" | "orange";
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const progress = (score / maxScore) * circumference;
+  const offset = circumference - progress;
+
+  const colors = {
+    violet: {
+      track: "stroke-violet-500/20",
+      progress: "stroke-violet-500",
+      text: "text-violet-600 dark:text-violet-400",
+    },
+    orange: {
+      track: "stroke-orange-500/20",
+      progress: "stroke-orange-500",
+      text: "text-orange-600 dark:text-orange-400",
+    },
+  };
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="transform -rotate-90" width={size} height={size}>
+        <circle
+          className={colors[color].track}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          className={colors[color].progress}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span
+        className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${colors[color].text}`}
+      >
+        {score}
+      </span>
+    </div>
   );
 }
 

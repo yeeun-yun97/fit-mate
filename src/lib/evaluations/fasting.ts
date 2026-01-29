@@ -80,3 +80,73 @@ export function getScoreBgColor(score: number): string {
     default: return "bg-red-500/10";
   }
 }
+
+// 대사 상태 평가
+export interface MetabolicState {
+  score: number;
+  state: string;
+  reason: string;
+}
+
+export function evaluateMetabolicState(g: number, k: number): MetabolicState {
+  // 1️⃣ 최적 상태 (완벽)
+  if (70 <= g && g <= 85 && 1.5 <= k && k <= 2.0) {
+    return {
+      score: 5,
+      state: "최적",
+      reason: "혈당 안정 + 케톤 최적 범위 (지방 연소 효율 최고)",
+    };
+  }
+
+  // 2️⃣ 적합 상태 (잘 되고 있음)
+  if (70 <= g && g <= 90 && 1.0 <= k && k <= 2.0) {
+    return {
+      score: 4,
+      state: "적합",
+      reason: "저탄고지에 잘 적응된 상태",
+    };
+  }
+
+  // 3️⃣ 둘 다 낮음 (에너지 부족형)
+  if (g < 70 && k < 0.5) {
+    return {
+      score: 2,
+      state: "에너지 부족",
+      reason: "혈당·케톤 모두 낮아 연료 부족 가능",
+    };
+  }
+
+  // 4️⃣ 둘 다 높음 (스트레스/과도 반응형)
+  if (g > 100 && k > 2.5) {
+    return {
+      score: 2,
+      state: "과부하",
+      reason: "혈당과 케톤이 모두 높아 스트레스·호르몬 영향 가능",
+    };
+  }
+
+  // 5️⃣ 혈당 높고 케톤 낮음 (탄수화물 의존형)
+  if (g > 100 && k < 0.5) {
+    return {
+      score: 2,
+      state: "탄수 의존",
+      reason: "혈당 높고 케톤 낮음 (탄수화물 에너지 의존 상태)",
+    };
+  }
+
+  // 6️⃣ 케톤 과다 (혈당은 낮은데 케톤이 너무 높음)
+  if (g < 85 && k > 2.5) {
+    return {
+      score: 3,
+      state: "케톤 과다",
+      reason: "케톤 과도 상승 (수분·전해질 점검 필요)",
+    };
+  }
+
+  // 7️⃣ 애매한 중간 상태
+  return {
+    score: 3,
+    state: "중간",
+    reason: "혈당·케톤이 부분적으로만 목표 범위 충족",
+  };
+}
