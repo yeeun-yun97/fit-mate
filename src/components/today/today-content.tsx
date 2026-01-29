@@ -8,6 +8,7 @@ import { evaluateGlucose, evaluateKetone, evaluateMetabolicState } from "@/lib/e
 import { EmptyState } from "@/components/ui/empty-state";
 import { FastingEditSheet } from "@/components/sheets/fasting-edit-sheet";
 import { WeightEditSheet } from "@/components/sheets/weight-edit-sheet";
+import { MealEditSheet } from "@/components/sheets/meal-edit-sheet";
 import type { DailyFasting } from "@/lib/types/database";
 
 interface WeightEntry {
@@ -16,7 +17,14 @@ interface WeightEntry {
   measured_at: string;
 }
 
-// 더미 데이터 (공복 혈액, 체중 제외)
+interface MealEntry {
+  id: string;
+  foods: string[];
+  eaten_at: string;
+  progress: number;
+}
+
+// 더미 데이터 (공복 혈액, 체중, 식단 제외)
 const dummyData = {
   bodyConditions: [
     { id: 1, type: "생리 시작", time: "08:00" },
@@ -25,11 +33,6 @@ const dummyData = {
   emotionConditions: [
     { id: 1, type: "기분 좋음", time: "09:00" },
     { id: 2, type: "스트레스", time: "15:00" },
-  ],
-  meals: [
-    { id: 1, name: "아보카도 샐러드", time: "08:30" },
-    { id: 2, name: "닭가슴살 도시락", time: "12:30" },
-    { id: 3, name: "연어 스테이크", time: "18:45" },
   ],
   review: {
     rating: 4,
@@ -42,11 +45,14 @@ export function TodayContent() {
   const [data, setData] = useState(dummyData);
   const [fastingData, setFastingData] = useState<DailyFasting | null>(null);
   const [weights, setWeights] = useState<WeightEntry[]>([]);
+  const [meals, setMeals] = useState<MealEntry[]>([]);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fastingSheetOpen, setFastingSheetOpen] = useState(false);
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
+  const [mealSheetOpen, setMealSheetOpen] = useState(false);
   const [editingWeight, setEditingWeight] = useState<WeightEntry | null>(null);
+  const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
 
   // 공복 혈액 데이터 가져오기
   const fetchFastingData = useCallback(async () => {
@@ -78,11 +84,28 @@ export function TodayContent() {
     setWeights(data || []);
   }, [selectedDate]);
 
+  // 식단 데이터 가져오기
+  const fetchMealData = useCallback(async () => {
+    const supabase = createClient();
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const nextDateStr = format(addDays(selectedDate, 1), "yyyy-MM-dd");
+
+    const { data } = await supabase
+      .from("timely_meals")
+      .select("id, foods, eaten_at, progress")
+      .gte("eaten_at", dateStr)
+      .lt("eaten_at", nextDateStr)
+      .order("eaten_at", { ascending: true });
+
+    setMeals(data || []);
+  }, [selectedDate]);
+
   // 날짜가 변경될 때마다 데이터 가져오기
   useEffect(() => {
     fetchFastingData();
     fetchWeightData();
-  }, [fetchFastingData, fetchWeightData]);
+    fetchMealData();
+  }, [fetchFastingData, fetchWeightData, fetchMealData]);
 
   const canGoNext = !isToday(selectedDate);
 
@@ -205,6 +228,59 @@ export function TodayContent() {
               );
             })()}
           </div>
+        )}
+      </div>
+
+      {/* 식단 */}
+      <div className="rounded-2xl bg-card border border-border/50 p-4">
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-foreground">식단</h3>
+        </div>
+        {meals.length > 0 ? (
+          <div className="space-y-2">
+            {meals.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(m.eaten_at), "HH:mm")}
+                  </span>
+                  <span className="text-sm font-medium">{m.foods.join(", ")}</span>
+                  <span className="text-xs text-primary font-medium">{m.progress}%</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingMeal(m);
+                    setMealSheetOpen(true);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  수정
+                </button>
+              </div>
+            ))}
+            {isToday(selectedDate) && (
+              <button
+                onClick={() => {
+                  setEditingMeal(null);
+                  setMealSheetOpen(true);
+                }}
+                className="w-full py-2 text-xs text-primary font-medium"
+              >
+                + 기록하기
+              </button>
+            )}
+          </div>
+        ) : (
+          <EmptyState
+            label="기록하기"
+            onClick={() => {
+              setEditingMeal(null);
+              setMealSheetOpen(true);
+            }}
+          />
         )}
       </div>
 
@@ -332,42 +408,6 @@ export function TodayContent() {
         )}
       </div>
 
-      {/* 식단 */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-foreground">식단</h3>
-          <button
-            onClick={() => setEditingSection("meal-add")}
-            className="text-xs text-primary font-medium"
-          >
-            + 추가
-          </button>
-        </div>
-        {data.meals.length > 0 ? (
-          <div className="space-y-2">
-            {data.meals.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground">{m.time}</span>
-                  <span className="text-sm font-medium">{m.name}</span>
-                </div>
-                <button
-                  onClick={() => setEditingSection(`meal-${m.id}`)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  수정
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">입력된 식단이 없습니다</p>
-        )}
-      </div>
-
       {/* 하루 리뷰 */}
       <div className="rounded-2xl bg-card border border-border/50 p-4">
         <h3 className="text-sm font-bold text-foreground mb-3">하루 리뷰</h3>
@@ -424,6 +464,14 @@ export function TodayContent() {
         onOpenChange={setWeightSheetOpen}
         initialData={editingWeight || undefined}
         onSaved={fetchWeightData}
+      />
+
+      {/* 식단 기록 바텀 시트 */}
+      <MealEditSheet
+        open={mealSheetOpen}
+        onOpenChange={setMealSheetOpen}
+        initialData={editingMeal || undefined}
+        onSaved={fetchMealData}
       />
     </div>
   );
