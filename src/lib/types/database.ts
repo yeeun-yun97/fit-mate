@@ -45,6 +45,17 @@ export interface BowelLog {
   created_at: string;
 }
 
+export interface DailyReview {
+  id: string;
+  user_id: string;
+  review_date: string;
+  rating: number;
+  good_points: string | null;
+  bad_points: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ActionResult = {
   error?: string;
   success?: boolean;

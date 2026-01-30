@@ -161,20 +161,10 @@ export function TodayContent() {
         </div>
       </div>
 
-      {/* 하루 리뷰 */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-foreground">하루 리뷰</h3>
-          {review && canWriteReview && (
-            <button
-              onClick={() => setReviewSheetOpen(true)}
-              className="text-xs text-primary font-medium"
-            >
-              수정
-            </button>
-          )}
-        </div>
-        {review ? (
+      {/* 하루 리뷰 - 데이터 있을 때만 표시 */}
+      {review && (
+        <div className="rounded-2xl bg-card border border-border/50 p-4">
+          <h3 className="text-sm font-bold text-foreground mb-3">하루 리뷰</h3>
           <div className="flex items-start gap-4">
             {/* 별점 */}
             <div className="flex items-center gap-1">
@@ -195,17 +185,8 @@ export function TodayContent() {
               </div>
             </div>
           </div>
-        ) : canWriteReview ? (
-          <EmptyState
-            label="리뷰 작성하기"
-            onClick={() => setReviewSheetOpen(true)}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            하루가 지난 후 리뷰를 작성할 수 있어요
-          </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 공복 혈액 */}
       <div className="rounded-2xl bg-card border border-border/50 p-4">

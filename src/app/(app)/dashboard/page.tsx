@@ -2,17 +2,24 @@ import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { PageContainer } from "@/components/layout/page-container";
 import { DailyChallenge } from "@/components/dashboard/daily-challenge";
+import { ReviewReminder } from "@/components/dashboard/review-reminder";
 import { WeekSelector } from "@/components/dashboard/week-selector";
 import { MiniChart } from "@/components/charts/mini-chart";
 import { WeightBoxplot } from "@/components/charts/weight-boxplot";
-import { format, subDays } from "date-fns";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const today = format(new Date(), "yyyy-MM-dd");
-  const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
 
-  const [{ data: todayLog }, { data: weekLogs }, { data: fastingData }, { data: weightData }] = await Promise.all([
+  // 한국 시간(KST) 기준으로 날짜 계산
+  const kstFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' });
+  const today = kstFormatter.format(new Date());
+  const yesterday = kstFormatter.format(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const weekAgo = kstFormatter.format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
+  // 체중 조회용: 한국시간 자정을 UTC로 변환
+  const weightStartUtc = `${weekAgo}T00:00:00+09:00`;
+
+  const [{ data: todayLog }, { data: weekLogs }, { data: fastingData }, { data: weightData }, { data: yesterdayReview }] = await Promise.all([
     supabase
       .from("daily_fastings")
       .select("id")
@@ -31,18 +38,27 @@ export default async function DashboardPage() {
     supabase
       .from("timely_weights")
       .select("measured_at, weight")
-      .gte("measured_at", `${weekAgo}T00:00:00`)
+      .gte("measured_at", weightStartUtc)
       .order("measured_at", { ascending: true }),
+    supabase
+      .from("daily_reviews")
+      .select("id")
+      .eq("review_date", yesterday)
+      .single(),
   ]);
 
   const dailyDates = new Set((weekLogs || []).map((d: { log_date: string }) => d.log_date));
 
   // 체중 데이터를 날짜별로 그룹화 (한국 시간대 기준)
   const weightByDate = (weightData || []).reduce((acc, item) => {
-    // UTC를 한국 시간(+9)으로 변환
-    const utcDate = new Date(item.measured_at);
-    const kstDate = new Date(utcDate.getTime() + 9 * 60 * 60 * 1000);
-    const date = format(kstDate, "M/d");
+    // UTC timestamp를 한국 시간으로 변환
+    // Date.parse는 타임존 정보를 포함한 문자열을 UTC ms로 변환
+    const utcMs = Date.parse(item.measured_at);
+    const kstMs = utcMs + 9 * 60 * 60 * 1000;
+    const kstDate = new Date(kstMs);
+    // UTC 메서드를 사용하여 한국 시간 기준 날짜 추출
+    const date = `${kstDate.getUTCMonth() + 1}/${kstDate.getUTCDate()}`;
+
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -66,6 +82,9 @@ export default async function DashboardPage() {
       <PageContainer>
         <div>
           <DailyChallenge hasLoggedToday={!!todayLog} />
+          <div className="mt-4">
+            <ReviewReminder hasYesterdayReview={!!yesterdayReview} />
+          </div>
           <div className="mt-4">
             <WeekSelector loggedDates={dailyDates} />
           </div>
