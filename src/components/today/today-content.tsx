@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FastingEditSheet } from "@/components/sheets/fasting-edit-sheet";
 import { WeightEditSheet } from "@/components/sheets/weight-edit-sheet";
 import { MealEditSheet } from "@/components/sheets/meal-edit-sheet";
-import type { DailyFasting } from "@/lib/types/database";
+import { ReviewEditSheet } from "@/components/sheets/review-edit-sheet";
+import type { DailyFasting, DailyReview } from "@/lib/types/database";
 
 interface WeightEntry {
   id: string;
@@ -24,7 +25,7 @@ interface MealEntry {
   progress: number;
 }
 
-// 더미 데이터 (공복 혈액, 체중, 식단 제외)
+// 더미 데이터 (컨디션만 유지)
 const dummyData = {
   bodyConditions: [
     { id: 1, type: "생리 시작", time: "08:00" },
@@ -34,11 +35,6 @@ const dummyData = {
     { id: 1, type: "기분 좋음", time: "09:00" },
     { id: 2, type: "스트레스", time: "15:00" },
   ],
-  review: {
-    rating: 4,
-    goodPoints: "식단 조절을 잘 지켰고, 운동도 계획대로 완료했다.",
-    badPoints: "물을 충분히 마시지 못했다.",
-  },
 };
 
 export function TodayContent() {
@@ -46,11 +42,13 @@ export function TodayContent() {
   const [fastingData, setFastingData] = useState<DailyFasting | null>(null);
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [meals, setMeals] = useState<MealEntry[]>([]);
+  const [review, setReview] = useState<DailyReview | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fastingSheetOpen, setFastingSheetOpen] = useState(false);
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
   const [mealSheetOpen, setMealSheetOpen] = useState(false);
+  const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
   const [editingWeight, setEditingWeight] = useState<WeightEntry | null>(null);
   const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
 
@@ -100,12 +98,30 @@ export function TodayContent() {
     setMeals(data || []);
   }, [selectedDate]);
 
+  // 리뷰 데이터 가져오기
+  const fetchReviewData = useCallback(async () => {
+    const supabase = createClient();
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+    const { data } = await supabase
+      .from("daily_reviews")
+      .select("*")
+      .eq("review_date", dateStr)
+      .single();
+
+    setReview(data);
+  }, [selectedDate]);
+
+  // 리뷰 작성 가능 여부 (오늘 이전 날짜만 가능)
+  const canWriteReview = !isToday(selectedDate);
+
   // 날짜가 변경될 때마다 데이터 가져오기
   useEffect(() => {
     fetchFastingData();
     fetchWeightData();
     fetchMealData();
-  }, [fetchFastingData, fetchWeightData, fetchMealData]);
+    fetchReviewData();
+  }, [fetchFastingData, fetchWeightData, fetchMealData, fetchReviewData]);
 
   const canGoNext = !isToday(selectedDate);
 
@@ -143,6 +159,52 @@ export function TodayContent() {
             <ChevronRightIcon className="w-4 h-4 text-foreground" />
           </button>
         </div>
+      </div>
+
+      {/* 하루 리뷰 */}
+      <div className="rounded-2xl bg-card border border-border/50 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-foreground">하루 리뷰</h3>
+          {review && canWriteReview && (
+            <button
+              onClick={() => setReviewSheetOpen(true)}
+              className="text-xs text-primary font-medium"
+            >
+              수정
+            </button>
+          )}
+        </div>
+        {review ? (
+          <div className="flex items-start gap-4">
+            {/* 별점 */}
+            <div className="flex items-center gap-1">
+              <StarIcon className="w-7 h-7" filled />
+              <span className="text-lg font-bold text-foreground">
+                {review.rating}
+              </span>
+            </div>
+            {/* 잘한 점 + 아쉬운 점 세로 배열 */}
+            <div className="flex-1 space-y-2">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">잘한 점</p>
+                <p className="text-sm whitespace-pre-line">{review.good_points || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">아쉬운 점</p>
+                <p className="text-sm whitespace-pre-line">{review.bad_points || "-"}</p>
+              </div>
+            </div>
+          </div>
+        ) : canWriteReview ? (
+          <EmptyState
+            label="리뷰 작성하기"
+            onClick={() => setReviewSheetOpen(true)}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            하루가 지난 후 리뷰를 작성할 수 있어요
+          </p>
+        )}
       </div>
 
       {/* 공복 혈액 */}
@@ -408,40 +470,6 @@ export function TodayContent() {
         )}
       </div>
 
-      {/* 하루 리뷰 */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <h3 className="text-sm font-bold text-foreground mb-3">하루 리뷰</h3>
-        {data.review ? (
-          <div className="space-y-3">
-            {/* 별점 */}
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <StarIcon
-                  key={star}
-                  className="w-5 h-5"
-                  filled={star <= data.review.rating}
-                />
-              ))}
-              <span className="text-sm text-muted-foreground ml-1">
-                {data.review.rating}/5
-              </span>
-            </div>
-            {/* 잘한 점 */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">잘한 점</p>
-              <p className="text-sm">{data.review.goodPoints || "미입력"}</p>
-            </div>
-            {/* 못한 점 */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">못한 점</p>
-              <p className="text-sm">{data.review.badPoints || "미입력"}</p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">오늘 하루를 돌아보세요</p>
-        )}
-      </div>
-
       {/* 공복 혈액 수정 바텀 시트 */}
       <FastingEditSheet
         open={fastingSheetOpen}
@@ -473,6 +501,23 @@ export function TodayContent() {
         initialData={editingMeal || undefined}
         onSaved={fetchMealData}
       />
+
+      {/* 하루 리뷰 바텀 시트 */}
+      <ReviewEditSheet
+        open={reviewSheetOpen}
+        onOpenChange={setReviewSheetOpen}
+        date={format(selectedDate, "yyyy-MM-dd")}
+        initialData={
+          review
+            ? {
+                rating: review.rating,
+                good_points: review.good_points,
+                bad_points: review.bad_points,
+              }
+            : undefined
+        }
+        onSaved={fetchReviewData}
+      />
     </div>
   );
 }
@@ -482,9 +527,8 @@ function StarIcon({ className, filled }: { className?: string; filled: boolean }
     <svg
       className={className}
       viewBox="0 0 24 24"
-      fill={filled ? "#facc15" : "none"}
-      stroke={filled ? "#facc15" : "currentColor"}
-      strokeWidth={1.5}
+      fill={filled ? "#facc15" : "#d1d5db"}
+      stroke="none"
     >
       <path
         strokeLinecap="round"
