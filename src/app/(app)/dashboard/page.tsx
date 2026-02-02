@@ -49,32 +49,18 @@ export default async function DashboardPage() {
 
   const dailyDates = new Set((weekLogs || []).map((d: { log_date: string }) => d.log_date));
 
-  // 체중 데이터를 날짜별로 그룹화 (한국 시간대 기준)
-  const weightByDate = (weightData || []).reduce((acc, item) => {
-    // UTC timestamp를 한국 시간으로 변환
-    // Date.parse는 타임존 정보를 포함한 문자열을 UTC ms로 변환
+  // 체중 데이터를 시간순으로 정렬 (한국 시간대 기준)
+  const chartWeightData = (weightData || []).map((item) => {
     const utcMs = Date.parse(item.measured_at);
     const kstMs = utcMs + 9 * 60 * 60 * 1000;
     const kstDate = new Date(kstMs);
-    // UTC 메서드를 사용하여 한국 시간 기준 날짜 추출
-    const date = `${kstDate.getUTCMonth() + 1}/${kstDate.getUTCDate()}`;
-
-    if (!acc[date]) {
-      acc[date] = [];
-    }
-    acc[date].push(Number(item.weight));
-    return acc;
-  }, {} as Record<string, number[]>);
-
-  // 데이터가 있는 날짜만 표시
-  const chartWeightData = Object.entries(weightByDate)
-    .map(([date, weights]) => ({ date, weights }))
-    .sort((a, b) => {
-      // 날짜순 정렬 (M/d 형식)
-      const [aMonth, aDay] = a.date.split("/").map(Number);
-      const [bMonth, bDay] = b.date.split("/").map(Number);
-      return aMonth !== bMonth ? aMonth - bMonth : aDay - bDay;
-    });
+    const label = `${kstDate.getUTCMonth() + 1}/${kstDate.getUTCDate()} ${String(kstDate.getUTCHours()).padStart(2, '0')}:${String(kstDate.getUTCMinutes()).padStart(2, '0')}`;
+    return {
+      label,
+      weight: Number(item.weight),
+      measured_at: item.measured_at,
+    };
+  });
 
   return (
     <>

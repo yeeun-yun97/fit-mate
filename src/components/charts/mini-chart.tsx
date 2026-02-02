@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -19,9 +18,6 @@ interface Props {
 }
 
 export function MiniChart({ data }: Props) {
-  const [showGlucose, setShowGlucose] = useState(true);
-  const [showKetone, setShowKetone] = useState(true);
-
   if (data.length < 2) {
     return (
       <div className="rounded-2xl bg-card border border-border/50 py-8 text-center text-sm text-muted-foreground">
@@ -36,121 +32,93 @@ export function MiniChart({ data }: Props) {
     ketone: d.fasting_ketone,
   }));
 
-  // 하나만 선택됐을 때 음영 표시
-  const showGlucoseShading = showGlucose && !showKetone;
-  const showKetoneShading = showKetone && !showGlucose;
-
-  const toggleGlucose = () => {
-    if (showGlucose && !showKetone) return; // 최소 하나는 선택
-    setShowGlucose(!showGlucose);
-  };
-
-  const toggleKetone = () => {
-    if (showKetone && !showGlucose) return; // 최소 하나는 선택
-    setShowKetone(!showKetone);
-  };
-
   return (
-    <div className="rounded-2xl bg-card border border-border/50 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-foreground">공복 혈액</h2>
-        <div className="flex items-center gap-1 text-[10px]">
-          <button
-            onClick={toggleGlucose}
-            className={`px-2 py-1 rounded-md border transition-colors ${
-              showGlucose
-                ? "bg-violet-500 text-white border-violet-500"
-                : "bg-transparent text-muted-foreground border-border hover:bg-muted"
-            }`}
-          >
-            혈당
-          </button>
-          <button
-            onClick={toggleKetone}
-            className={`px-2 py-1 rounded-md border transition-colors ${
-              showKetone
-                ? "bg-orange-500 text-white border-orange-500"
-                : "bg-transparent text-muted-foreground border-border hover:bg-muted"
-            }`}
-          >
-            케톤
-          </button>
+    <div className="space-y-4">
+      {/* 혈당 차트 */}
+      <div className="rounded-2xl bg-card border border-border/50 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-foreground">공복 혈당</h2>
+          <span className="text-[10px] text-muted-foreground">단위: mg/dL</span>
         </div>
-      </div>
-      <ResponsiveContainer width="100%" height={160}>
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-          {showGlucose && (
+        <ResponsiveContainer width="100%" height={140}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
             <YAxis
-              yAxisId="left"
               tick={{ fontSize: 10 }}
               domain={[60, 110]}
               width={30}
             />
-          )}
-          {showKetone && (
-            <YAxis
-              yAxisId="right"
-              orientation={showGlucose ? "right" : "left"}
-              tick={{ fontSize: 10 }}
-              domain={[0, 3]}
-              width={30}
-            />
-          )}
-          {/* 목표 구간 음영 (하나만 선택됐을 때 표시) */}
-          {showGlucoseShading && (
             <ReferenceArea
-              yAxisId="left"
               y1={70}
               y2={90}
               fill="#8b5cf6"
               fillOpacity={0.15}
             />
-          )}
-          {showKetoneShading && (
-            <ReferenceArea
-              yAxisId="right"
-              y1={1.0}
-              y2={2.0}
-              fill="#f97316"
-              fillOpacity={0.15}
+            <Tooltip
+              contentStyle={{
+                fontSize: 12,
+                borderRadius: 12,
+                border: "1px solid hsl(var(--border))",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              }}
+              formatter={(value: number) => [`${value} mg/dL`, "혈당"]}
             />
-          )}
-          <Tooltip
-            contentStyle={{
-              fontSize: 12,
-              borderRadius: 12,
-              border: "1px solid hsl(var(--border))",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            }}
-          />
-          {showGlucose && (
             <Line
-              yAxisId="left"
               type="monotone"
               dataKey="glucose"
               name="혈당"
               stroke="#8b5cf6"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 4, fill: "white", stroke: "#8b5cf6", strokeWidth: 2 }}
               connectNulls
             />
-          )}
-          {showKetone && (
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 케톤 차트 */}
+      <div className="rounded-2xl bg-card border border-border/50 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-foreground">공복 케톤</h2>
+          <span className="text-[10px] text-muted-foreground">단위: mmol/L</span>
+        </div>
+        <ResponsiveContainer width="100%" height={140}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+            <YAxis
+              tick={{ fontSize: 10 }}
+              domain={[0, 3]}
+              width={30}
+            />
+            <ReferenceArea
+              y1={1.0}
+              y2={2.0}
+              fill="#f97316"
+              fillOpacity={0.15}
+            />
+            <Tooltip
+              contentStyle={{
+                fontSize: 12,
+                borderRadius: 12,
+                border: "1px solid hsl(var(--border))",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              }}
+              formatter={(value: number) => [`${value} mmol/L`, "케톤"]}
+            />
             <Line
-              yAxisId="right"
               type="monotone"
               dataKey="ketone"
               name="케톤"
               stroke="#f97316"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 4, fill: "white", stroke: "#f97316", strokeWidth: 2 }}
               connectNulls
             />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
