@@ -165,9 +165,13 @@ export function TodayContent() {
   }, [fetchConditionPresets]);
 
   const canGoNext = !isToday(selectedDate);
+  const minDate = new Date(2026, 0, 26); // 2026년 1월 26일
+  const canGoPrev = selectedDate > minDate;
 
   const goToPrevDay = () => {
-    setSelectedDate(subDays(selectedDate, 1));
+    if (canGoPrev) {
+      setSelectedDate(subDays(selectedDate, 1));
+    }
   };
 
   const goToNextDay = () => {
@@ -183,7 +187,10 @@ export function TodayContent() {
         <div className="flex items-center gap-1">
           <button
             onClick={goToPrevDay}
-            className="p-1.5 rounded-full hover:bg-muted transition-colors"
+            disabled={!canGoPrev}
+            className={`p-1.5 rounded-full transition-colors ${
+              canGoPrev ? "hover:bg-muted" : "opacity-30 cursor-not-allowed"
+            }`}
           >
             <ChevronLeftIcon className="w-4 h-4 text-foreground" />
           </button>
@@ -281,11 +288,13 @@ export function TodayContent() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : isToday(selectedDate) ? (
           <EmptyState
             label="기록하기"
             onClick={() => setFastingSheetOpen(true)}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">기록 없음</p>
         )}
         {/* 대사 상태 메시지 */}
         {fastingData?.fasting_glucose != null && fastingData?.fasting_ketone != null && (
@@ -357,7 +366,7 @@ export function TodayContent() {
               </button>
             )}
           </div>
-        ) : (
+        ) : isToday(selectedDate) ? (
           <EmptyState
             label="기록하기"
             onClick={() => {
@@ -365,6 +374,8 @@ export function TodayContent() {
               setMealSheetOpen(true);
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">기록 없음</p>
         )}
       </div>
 
@@ -409,7 +420,7 @@ export function TodayContent() {
               </button>
             )}
           </div>
-        ) : (
+        ) : isToday(selectedDate) ? (
           <EmptyState
             label="기록하기"
             onClick={() => {
@@ -417,6 +428,8 @@ export function TodayContent() {
               setWeightSheetOpen(true);
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">기록 없음</p>
         )}
       </div>
 
@@ -475,7 +488,7 @@ export function TodayContent() {
               </button>
             )}
           </div>
-        ) : (
+        ) : isToday(selectedDate) ? (
           <EmptyState
             label="기록하기"
             onClick={() => {
@@ -483,6 +496,8 @@ export function TodayContent() {
               setConditionSheetOpen(true);
             }}
           />
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">기록 없음</p>
         )}
       </div>
 
