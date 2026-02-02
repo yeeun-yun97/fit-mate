@@ -1,10 +1,14 @@
 "use client";
 
 import { logout } from "@/actions/auth";
+import { ConditionPresetsSettings } from "./condition-presets-settings";
 
 export function SettingsContent() {
   return (
     <div className="space-y-4">
+      {/* 컨디션 프리셋 관리 */}
+      <ConditionPresetsSettings />
+
       {/* 계정 */}
       <div className="rounded-2xl bg-card border border-border/50 p-4">
         <h3 className="text-sm font-bold text-foreground mb-3">계정</h3>
