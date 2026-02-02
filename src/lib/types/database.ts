@@ -56,7 +56,38 @@ export interface DailyReview {
   updated_at: string;
 }
 
+export interface BodyConditionEntry {
+  id: string;
+  condition_type: string;
+  intensity: number;
+  logged_at: string;
+  note?: string;
+}
+
+export interface EmotionConditionEntry {
+  id: string;
+  condition_type: string;
+  intensity: number;
+  logged_at: string;
+  note?: string;
+}
+
+export interface ConditionEntry {
+  id: string;
+  condition_type: string;
+  intensity: number;
+  logged_at: string;
+  note?: string;
+  source: 'body' | 'emotion';
+}
+
 export type ActionResult = {
   error?: string;
   success?: boolean;
 };
+
+export interface UserConditionPreset {
+  id: string;
+  category: 'body' | 'emotion';
+  label: string;
+}

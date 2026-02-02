@@ -10,7 +10,8 @@ import { FastingEditSheet } from "@/components/sheets/fasting-edit-sheet";
 import { WeightEditSheet } from "@/components/sheets/weight-edit-sheet";
 import { MealEditSheet } from "@/components/sheets/meal-edit-sheet";
 import { ReviewEditSheet } from "@/components/sheets/review-edit-sheet";
-import type { DailyFasting, DailyReview } from "@/lib/types/database";
+import { ConditionEditSheet } from "@/components/sheets/condition-edit-sheet";
+import type { DailyFasting, DailyReview, ConditionEntry } from "@/lib/types/database";
 
 interface WeightEntry {
   id: string;
@@ -25,32 +26,22 @@ interface MealEntry {
   progress: number;
 }
 
-// 더미 데이터 (컨디션만 유지)
-const dummyData = {
-  bodyConditions: [
-    { id: 1, type: "생리 시작", time: "08:00" },
-    { id: 2, type: "두통", time: "14:30" },
-  ],
-  emotionConditions: [
-    { id: 1, type: "기분 좋음", time: "09:00" },
-    { id: 2, type: "스트레스", time: "15:00" },
-  ],
-};
-
 export function TodayContent() {
-  const [data, setData] = useState(dummyData);
   const [fastingData, setFastingData] = useState<DailyFasting | null>(null);
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [review, setReview] = useState<DailyReview | null>(null);
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [conditions, setConditions] = useState<ConditionEntry[]>([]);
+  const [conditionPresets, setConditionPresets] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [fastingSheetOpen, setFastingSheetOpen] = useState(false);
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
   const [mealSheetOpen, setMealSheetOpen] = useState(false);
   const [reviewSheetOpen, setReviewSheetOpen] = useState(false);
+  const [conditionSheetOpen, setConditionSheetOpen] = useState(false);
   const [editingWeight, setEditingWeight] = useState<WeightEntry | null>(null);
   const [editingMeal, setEditingMeal] = useState<MealEntry | null>(null);
+  const [editingCondition, setEditingCondition] = useState<ConditionEntry | null>(null);
 
   // 공복 혈액 데이터 가져오기
   const fetchFastingData = useCallback(async () => {
@@ -112,6 +103,50 @@ export function TodayContent() {
     setReview(data);
   }, [selectedDate]);
 
+  // 컨디션 데이터 가져오기 (신체 + 감정 통합)
+  const fetchConditions = useCallback(async () => {
+    const supabase = createClient();
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const nextDateStr = format(addDays(selectedDate, 1), "yyyy-MM-dd");
+
+    const [bodyRes, emotionRes] = await Promise.all([
+      supabase
+        .from("timely_body_conditions")
+        .select("id, condition_type, intensity, logged_at, note")
+        .gte("logged_at", dateStr)
+        .lt("logged_at", nextDateStr),
+      supabase
+        .from("timely_emotion_conditions")
+        .select("id, condition_type, intensity, logged_at, note")
+        .gte("logged_at", dateStr)
+        .lt("logged_at", nextDateStr),
+    ]);
+
+    const merged: ConditionEntry[] = [
+      ...(bodyRes.data || []).map((d) => ({ ...d, source: 'body' as const })),
+      ...(emotionRes.data || []).map((d) => ({ ...d, source: 'emotion' as const })),
+    ].sort((a, b) => new Date(a.logged_at).getTime() - new Date(b.logged_at).getTime());
+
+    setConditions(merged);
+  }, [selectedDate]);
+
+  // 사용자 정의 프리셋 가져오기
+  const fetchConditionPresets = useCallback(async () => {
+    const supabase = createClient();
+
+    const { data } = await supabase
+      .from("user_condition_presets")
+      .select("id, category, label")
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      // 모든 카테고리의 프리셋을 하나의 목록으로 통합
+      const allLabels = data.map((p) => p.label);
+      // 중복 제거
+      setConditionPresets([...new Set(allLabels)]);
+    }
+  }, []);
+
   // 리뷰 작성 가능 여부 (오늘 이전 날짜만 가능)
   const canWriteReview = !isToday(selectedDate);
 
@@ -121,7 +156,13 @@ export function TodayContent() {
     fetchWeightData();
     fetchMealData();
     fetchReviewData();
-  }, [fetchFastingData, fetchWeightData, fetchMealData, fetchReviewData]);
+    fetchConditions();
+  }, [fetchFastingData, fetchWeightData, fetchMealData, fetchReviewData, fetchConditions]);
+
+  // 프리셋은 한 번만 가져오기
+  useEffect(() => {
+    fetchConditionPresets();
+  }, [fetchConditionPresets]);
 
   const canGoNext = !isToday(selectedDate);
 
@@ -379,75 +420,69 @@ export function TodayContent() {
         )}
       </div>
 
-      {/* 신체 컨디션 */}
+      {/* 컨디션 (통합) */}
       <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-foreground">신체 컨디션</h3>
-          <button
-            onClick={() => setEditingSection("body-condition-add")}
-            className="text-xs text-primary font-medium"
-          >
-            + 추가
-          </button>
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-foreground">컨디션</h3>
         </div>
-        {data.bodyConditions.length > 0 ? (
+        {conditions.length > 0 ? (
           <div className="space-y-2">
-            {data.bodyConditions.map((e) => (
+            {conditions.map((c) => (
               <div
-                key={e.id}
+                key={`${c.source}-${c.id}`}
                 className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground">{e.time}</span>
-                  <span className="text-sm font-medium">{e.type}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(c.logged_at), "HH:mm")}
+                  </span>
+                  <span className="text-sm font-medium">{c.condition_type}</span>
+                  {c.intensity !== 4 && (
+                    <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          c.intensity < 4 ? "bg-red-400" : "bg-green-400"
+                        }`}
+                        style={{
+                          width: `${c.intensity < 4
+                            ? ((4 - c.intensity) / 3) * 100
+                            : ((c.intensity - 4) / 3) * 100}%`
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <button
-                  onClick={() => setEditingSection(`body-condition-${e.id}`)}
+                  onClick={() => {
+                    setEditingCondition(c);
+                    setConditionSheetOpen(true);
+                  }}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   수정
                 </button>
               </div>
             ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">입력된 컨디션이 없습니다</p>
-        )}
-      </div>
-
-      {/* 감정 컨디션 */}
-      <div className="rounded-2xl bg-card border border-border/50 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-foreground">감정 컨디션</h3>
-          <button
-            onClick={() => setEditingSection("emotion-condition-add")}
-            className="text-xs text-primary font-medium"
-          >
-            + 추가
-          </button>
-        </div>
-        {data.emotionConditions.length > 0 ? (
-          <div className="space-y-2">
-            {data.emotionConditions.map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
+            {isToday(selectedDate) && (
+              <button
+                onClick={() => {
+                  setEditingCondition(null);
+                  setConditionSheetOpen(true);
+                }}
+                className="w-full py-2 text-xs text-primary font-medium"
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground">{e.time}</span>
-                  <span className="text-sm font-medium">{e.type}</span>
-                </div>
-                <button
-                  onClick={() => setEditingSection(`emotion-condition-${e.id}`)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  수정
-                </button>
-              </div>
-            ))}
+                + 기록하기
+              </button>
+            )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">입력된 컨디션이 없습니다</p>
+          <EmptyState
+            label="기록하기"
+            onClick={() => {
+              setEditingCondition(null);
+              setConditionSheetOpen(true);
+            }}
+          />
         )}
       </div>
 
@@ -498,6 +533,16 @@ export function TodayContent() {
             : undefined
         }
         onSaved={fetchReviewData}
+      />
+
+      {/* 컨디션 바텀 시트 */}
+      <ConditionEditSheet
+        open={conditionSheetOpen}
+        onOpenChange={setConditionSheetOpen}
+        initialData={editingCondition || undefined}
+        onSaved={fetchConditions}
+        customPresets={conditionPresets}
+        onPresetAdded={fetchConditionPresets}
       />
     </div>
   );
