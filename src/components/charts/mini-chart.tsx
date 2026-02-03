@@ -62,7 +62,7 @@ export function MiniChart({ data }: Props) {
                 border: "1px solid hsl(var(--border))",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
-              formatter={(value: number) => [`${value} mg/dL`, "혈당"]}
+              formatter={(value) => [`${value} mg/dL`, "혈당"]}
             />
             <Line
               type="monotone"
@@ -105,7 +105,7 @@ export function MiniChart({ data }: Props) {
                 border: "1px solid hsl(var(--border))",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               }}
-              formatter={(value: number) => [`${value} mmol/L`, "케톤"]}
+              formatter={(value) => [`${value} mmol/L`, "케톤"]}
             />
             <Line
               type="monotone"
