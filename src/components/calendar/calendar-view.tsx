@@ -6,11 +6,22 @@ import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/client";
 
+interface ConditionData {
+  condition_type: string;
+  intensity: number;
+}
+
 interface DateInfo {
   hasFasting: boolean;
   hasWeight: boolean;
   hasMeal: boolean;
   hasCondition: boolean;
+  glucose?: number;
+  ketone?: number;
+  weight?: number;
+  mealCount?: number;
+  conditionCount?: number;
+  conditions?: ConditionData[];
 }
 
 export function CalendarView() {
@@ -19,6 +30,11 @@ export function CalendarView() {
   const [month, setMonth] = useState(now.getMonth());
   const [dateData, setDateData] = useState<Record<string, DateInfo>>({});
   const [loading, setLoading] = useState(true);
+  const [showFasting, setShowFasting] = useState(true);
+  const [showWeight, setShowWeight] = useState(true);
+  const [showMeal, setShowMeal] = useState(true);
+  const [availableConditions, setAvailableConditions] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<Set<string>>(new Set());
 
   const minYear = 2026;
   const minMonth = 0; // 1월
@@ -63,12 +79,12 @@ export function CalendarView() {
     ] = await Promise.all([
       supabase
         .from("daily_fastings")
-        .select("log_date")
+        .select("log_date, fasting_glucose, fasting_ketone")
         .gte("log_date", startDate)
         .lte("log_date", endDate),
       supabase
         .from("timely_weights")
-        .select("measured_at")
+        .select("measured_at, weight")
         .gte("measured_at", `${startDate}T00:00:00+09:00`)
         .lte("measured_at", `${endDate}T23:59:59+09:00`),
       supabase
@@ -78,7 +94,7 @@ export function CalendarView() {
         .lte("eaten_at", `${endDate}T23:59:59+09:00`),
       supabase
         .from("timely_body_conditions")
-        .select("logged_at")
+        .select("logged_at, condition_type, intensity")
         .gte("logged_at", `${startDate}T00:00:00+09:00`)
         .lte("logged_at", `${endDate}T23:59:59+09:00`),
     ]);
@@ -94,33 +110,52 @@ export function CalendarView() {
 
     const ensureDate = (dateStr: string) => {
       if (!newDateData[dateStr]) {
-        newDateData[dateStr] = { hasFasting: false, hasWeight: false, hasMeal: false, hasCondition: false };
+        newDateData[dateStr] = {
+          hasFasting: false, hasWeight: false, hasMeal: false, hasCondition: false,
+          mealCount: 0, conditionCount: 0
+        };
       }
     };
 
     fastingData?.forEach((d) => {
       ensureDate(d.log_date);
       newDateData[d.log_date].hasFasting = true;
+      newDateData[d.log_date].glucose = d.fasting_glucose ?? undefined;
+      newDateData[d.log_date].ketone = d.fasting_ketone ?? undefined;
     });
 
     weightData?.forEach((d) => {
       const dateStr = getKstDateStr(d.measured_at);
       ensureDate(dateStr);
       newDateData[dateStr].hasWeight = true;
+      // 마지막 체중값 저장 (같은 날 여러 개면 덮어씀)
+      newDateData[dateStr].weight = Number(d.weight);
     });
 
     mealData?.forEach((d) => {
       const dateStr = getKstDateStr(d.eaten_at);
       ensureDate(dateStr);
       newDateData[dateStr].hasMeal = true;
+      newDateData[dateStr].mealCount = (newDateData[dateStr].mealCount || 0) + 1;
     });
 
+    const uniqueConditions = new Set<string>();
     conditionData?.forEach((d) => {
       const dateStr = getKstDateStr(d.logged_at);
       ensureDate(dateStr);
       newDateData[dateStr].hasCondition = true;
+      newDateData[dateStr].conditionCount = (newDateData[dateStr].conditionCount || 0) + 1;
+      if (!newDateData[dateStr].conditions) {
+        newDateData[dateStr].conditions = [];
+      }
+      newDateData[dateStr].conditions!.push({
+        condition_type: d.condition_type,
+        intensity: d.intensity,
+      });
+      uniqueConditions.add(d.condition_type);
     });
 
+    setAvailableConditions(Array.from(uniqueConditions).sort());
     setDateData(newDateData);
     setLoading(false);
   }, [year, month]);
@@ -253,19 +288,35 @@ export function CalendarView() {
 
                   {/* 기록 표시 */}
                   {data && !isFuture && !loading && (
-                    <div className="flex flex-wrap justify-center gap-0.5 mt-1">
-                      {data.hasFasting && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    <div className="flex flex-col items-center gap-0 mt-0.5 text-[8px] leading-tight">
+                      {showFasting && data.hasFasting && (
+                        <span className="text-violet-500 font-medium">
+                          {data.glucose ?? "-"}
+                        </span>
                       )}
-                      {data.hasWeight && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      {showWeight && data.hasWeight && data.weight && (
+                        <span className="text-green-500 font-medium">
+                          {data.weight.toFixed(1)}
+                        </span>
                       )}
-                      {data.hasMeal && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                      {showMeal && data.hasMeal && (
+                        <span className="text-orange-500 font-medium">
+                          {data.mealCount}끼
+                        </span>
                       )}
-                      {data.hasCondition && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-pink-400" />
-                      )}
+                      {selectedConditions.size > 0 && data.conditions && (() => {
+                        const matched = data.conditions.filter(
+                          (c) => selectedConditions.has(c.condition_type)
+                        );
+                        if (matched.length > 0) {
+                          return matched.map((m, i) => (
+                            <span key={i} className="text-pink-500 font-medium">
+                              {m.intensity}
+                            </span>
+                          ));
+                        }
+                        return null;
+                      })()}
                     </div>
                   )}
                 </div>
@@ -284,24 +335,66 @@ export function CalendarView() {
         </div>
       </div>
 
-      {/* 범례 */}
-      <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-violet-400" />
+      {/* 필터 */}
+      <div className="flex flex-wrap justify-center gap-2 text-xs">
+        <button
+          onClick={() => setShowFasting(!showFasting)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
+            showFasting
+              ? "bg-violet-500 text-white border-violet-500"
+              : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${showFasting ? "bg-white" : "bg-violet-400"}`} />
           <span>공복혈액</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-green-400" />
+        </button>
+        <button
+          onClick={() => setShowWeight(!showWeight)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
+            showWeight
+              ? "bg-green-500 text-white border-green-500"
+              : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${showWeight ? "bg-white" : "bg-green-400"}`} />
           <span>체중</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-orange-400" />
+        </button>
+        <button
+          onClick={() => setShowMeal(!showMeal)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
+            showMeal
+              ? "bg-orange-500 text-white border-orange-500"
+              : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${showMeal ? "bg-white" : "bg-orange-400"}`} />
           <span>식단</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-pink-400" />
-          <span>컨디션</span>
-        </div>
+        </button>
+        {availableConditions.map((condition) => {
+          const isSelected = selectedConditions.has(condition);
+          return (
+            <button
+              key={condition}
+              onClick={() => {
+                const newSet = new Set(selectedConditions);
+                if (isSelected) {
+                  newSet.delete(condition);
+                } else {
+                  newSet.add(condition);
+                }
+                setSelectedConditions(newSet);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
+                isSelected
+                  ? "bg-pink-500 text-white border-pink-500"
+                  : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${isSelected ? "bg-white" : "bg-pink-400"}`} />
+              <span>{condition}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -322,3 +415,4 @@ function ChevronRightIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
