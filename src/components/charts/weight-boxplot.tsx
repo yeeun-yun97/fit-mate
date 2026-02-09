@@ -12,12 +12,6 @@ import {
 
 import { calculateDailyAverageWeight, WeightData } from "@/lib/utils";
 
-interface WeightData {
-  label: string;
-  weight: number;
-  measured_at: string;
-}
-
 interface Props {
   data: WeightData[];
 }
