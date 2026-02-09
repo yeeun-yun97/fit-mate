@@ -10,6 +10,8 @@ import {
   CartesianGrid,
 } from "recharts";
 
+import { calculateDailyAverageWeight, WeightData } from "@/lib/utils";
+
 interface WeightData {
   label: string;
   weight: number;
@@ -21,7 +23,9 @@ interface Props {
 }
 
 export function WeightBoxplot({ data }: Props) {
-  if (data.length < 2) {
+  const averagedData = calculateDailyAverageWeight(data);
+
+  if (averagedData.length < 2) {
     return (
       <div className="rounded-2xl bg-card border border-border/50 py-8 text-center text-sm text-muted-foreground">
         차트를 표시하려면 최소 2개의 기록이 필요합니다
@@ -29,11 +33,14 @@ export function WeightBoxplot({ data }: Props) {
     );
   }
 
-  // x축 라벨: 데이터가 많으면 날짜만, 적으면 시간도 표시
-  const chartData = data.map((d) => ({
-    ...d,
-    displayLabel: data.length > 7 ? d.label.split(' ')[0] : d.label,
-  }));
+  // x축 라벨: M/d 형식으로 간단하게 표시
+  const chartData = averagedData.map((d) => {
+    const [year, month, day] = d.label.split('-');
+    return {
+      ...d,
+      displayLabel: `${parseInt(month)}/${parseInt(day)}`,
+    };
+  });
 
   return (
     <div className="rounded-2xl bg-card border border-border/50 p-4">

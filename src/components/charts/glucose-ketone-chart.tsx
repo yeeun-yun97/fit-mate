@@ -9,6 +9,7 @@ import {
   Tooltip,
   CartesianGrid,
   Legend,
+  ReferenceArea,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -56,7 +57,7 @@ export function GlucoseKetoneChart({ data }: Props) {
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 10 }}
-              domain={[0, "auto"]}
+              domain={[0, 3.0]}
               label={{ value: "mmol/L", angle: 90, position: "insideRight", fontSize: 10 }}
               width={45}
             />
@@ -68,6 +69,13 @@ export function GlucoseKetoneChart({ data }: Props) {
               }}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
+            <ReferenceArea
+              yAxisId="right"
+              y1={0.5}
+              y2={2.0}
+              fill="#84cc16"
+              fillOpacity={0.1}
+            />
             <Line
               yAxisId="left"
               type="monotone"
