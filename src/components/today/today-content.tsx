@@ -61,13 +61,16 @@ export function TodayContent() {
   const fetchWeightData = useCallback(async () => {
     const supabase = createClient();
     const dateStr = format(selectedDate, "yyyy-MM-dd");
-    const nextDateStr = format(addDays(selectedDate, 1), "yyyy-MM-dd");
+    
+    // KST 기준 해당 날짜의 시작과 끝 (UTC 기준)
+    const startDate = new Date(`${dateStr}T00:00:00+09:00`);
+    const endDate = new Date(`${dateStr}T23:59:59.999+09:00`);
 
     const { data } = await supabase
       .from("timely_weights")
       .select("id, weight, measured_at")
-      .gte("measured_at", dateStr)
-      .lt("measured_at", nextDateStr)
+      .gte("measured_at", startDate.toISOString())
+      .lte("measured_at", endDate.toISOString())
       .order("measured_at", { ascending: true });
 
     setWeights(data || []);
@@ -77,13 +80,16 @@ export function TodayContent() {
   const fetchMealData = useCallback(async () => {
     const supabase = createClient();
     const dateStr = format(selectedDate, "yyyy-MM-dd");
-    const nextDateStr = format(addDays(selectedDate, 1), "yyyy-MM-dd");
+    
+    // KST 기준 해당 날짜의 시작과 끝 (UTC 기준)
+    const startDate = new Date(`${dateStr}T00:00:00+09:00`);
+    const endDate = new Date(`${dateStr}T23:59:59.999+09:00`);
 
     const { data } = await supabase
       .from("timely_meals")
       .select("id, foods, eaten_at, progress")
-      .gte("eaten_at", dateStr)
-      .lt("eaten_at", nextDateStr)
+      .gte("eaten_at", startDate.toISOString())
+      .lte("eaten_at", endDate.toISOString())
       .order("eaten_at", { ascending: true });
 
     setMeals(data || []);
@@ -107,19 +113,22 @@ export function TodayContent() {
   const fetchConditions = useCallback(async () => {
     const supabase = createClient();
     const dateStr = format(selectedDate, "yyyy-MM-dd");
-    const nextDateStr = format(addDays(selectedDate, 1), "yyyy-MM-dd");
+    
+    // KST 기준 해당 날짜의 시작과 끝 (UTC 기준)
+    const startDate = new Date(`${dateStr}T00:00:00+09:00`);
+    const endDate = new Date(`${dateStr}T23:59:59.999+09:00`);
 
     const [bodyRes, emotionRes] = await Promise.all([
       supabase
         .from("timely_body_conditions")
         .select("id, condition_type, intensity, logged_at, note")
-        .gte("logged_at", dateStr)
-        .lt("logged_at", nextDateStr),
+        .gte("logged_at", startDate.toISOString())
+        .lte("logged_at", endDate.toISOString()),
       supabase
         .from("timely_emotion_conditions")
         .select("id, condition_type, intensity, logged_at, note")
-        .gte("logged_at", dateStr)
-        .lt("logged_at", nextDateStr),
+        .gte("logged_at", startDate.toISOString())
+        .lte("logged_at", endDate.toISOString()),
     ]);
 
     const merged: ConditionEntry[] = [
