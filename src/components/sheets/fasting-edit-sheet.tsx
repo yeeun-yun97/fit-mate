@@ -135,7 +135,7 @@ export function FastingEditSheet({
               id="ketone"
               type="range"
               min="0"
-              max="1.5"
+              max="3.0"
               step="0.1"
               value={ketone}
               onChange={(e) => setKetone(parseFloat(e.target.value))}
@@ -143,9 +143,9 @@ export function FastingEditSheet({
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>0.0</span>
-              <span>0.5</span>
               <span>1.0</span>
-              <span>1.5</span>
+              <span>2.0</span>
+              <span>3.0</span>
             </div>
           </div>
         </BottomSheetBody>
